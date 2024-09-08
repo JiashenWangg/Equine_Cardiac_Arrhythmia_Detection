@@ -1,0 +1,205 @@
+---
+title: "Threshold Data PCA"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F)
+knitr::opts_chunk$set(warning = F)
+knitr::opts_chunk$set(message = F)
+```
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(gridExtra) #for ggplot grid
+library(ggdendro)
+library(patchwork)
+library(factoextra)
+library(ggfortify)
+```
+
+```{r}
+df = read.csv("df_std.csv", header = TRUE)
+df$Window_3 <- factor(df$Window_3, levels = c("Endotoxin Admin", "Severe Symptoms", "Recovery Stage"))
+df = df[,-1]
+head(df)
+```
+
+```{r}
+summ_stat = c("num_comp", "SD1", "SD2", "Mean", "Variance", "Min", "Max")
+#dist 
+dist = dist(df[,summ_stat])
+```
+
+```{r}
+# mds
+mds <- cmdscale(d = dist, k = 2)
+df <- df %>%
+  mutate(mds1 = mds[,1],
+         mds2 = mds[,2])
+# plot mds by window
+df %>%
+  ggplot(aes(x = mds1, y = mds2, color = Window_3)) +
+  geom_point(alpha = 0.5) +
+  labs(x = "Coordinate 1", y = "Coordinate 2", title = "MDS by Window_3")
+```
+
+```{r, fig.width=6, fig.height=4}
+# PCA
+pca <- prcomp(dplyr::select(df, c("num_comp", "SD1", "SD2", "Variance", "Mean", "Min", "Max")))
+
+autoplot(pca, 
+         data = df,
+         alpha = 0.4,
+         color = "Window_3",
+         loadings = TRUE, loadings.colour = 'darkblue',
+         loadings.label.colour = 'darkblue',
+         loadings.label = TRUE, loadings.label.size = 3,
+         loadings.label.repel = TRUE)  +
+  labs(title = "PCA Biplot", color = "")
+```
+
+
+```{r, fig.width=6, fig.height=4}
+# PCA with 2 phases
+df_2phase = df[which(df$Window_3 != "Endotoxin Admin"),]
+pca_2phase <- prcomp(dplyr::select(df_2phase, c("num_comp", "SD1", "SD2", "Variance", "Mean", "Min", "Max")))
+
+autoplot(pca_2phase, 
+         data = df_2phase,
+         alpha = 0.4,
+         color = "Window_3",
+         loadings = TRUE, loadings.colour = 'darkblue',
+         loadings.label.colour = 'darkblue',
+         loadings.label = TRUE, loadings.label.size = 3,
+         loadings.label.repel = TRUE)  +
+  labs(title = "PCA Biplot", color = "")
+```
+
+Arrow direction: "as the variable increases..." 
+Arrow angles: correlation 
+  90 degrees means uncorrelated 
+  90- means positively correlated 
+  90+ means negatively correlated
+Arrow length: strength of relationship with PCs
+
+SD1 and Max are the most negatively correlated with PC1.
+num_comp is the most negatively correlated with PC2.
+
+```{r, fig.width=7, fig.height=10}
+# hierarchical clustering
+hc_complete <- hclust(dist, method = "complete")
+
+hc_complete_ggdendro <- ggdendrogram(hc_complete, theme_dendro = FALSE) +
+  labs(y = "Cluster Dissimilarity (complete linkage)", 
+       title = "") + 
+  coord_flip() +
+  theme_bw() +
+  theme(axis.title.y = element_blank())
+
+hc_complete_ggdendro
+
+clusters <- cutree(hc_complete, h = 8)
+df$clust_dendro = clusters
+df$clust_dendro = factor(df$clust_dendro)
+```
+
+```{r, fig.width=10, fig.height=6}
+library(dendextend)
+hc_dendrogram <- as.dendrogram(hc_complete)
+hc_dendrogram <- set(hc_dendrogram,
+                     "branches_k_color", k = 1)
+plot(hc_dendrogram, ylab = "Pairwise Distance")
+```
+
+```{r, fig.width=7, fig.height=5Z}
+mosaicplot(table(df$Window_3, df$clust_dendro), shade = TRUE, las = 1,
+           xlab = "Arrhythmia Phase", ylab = "Hierarchical Cluster", main = "Mosaic Plot")
+# Phase 1 windows are more likely to be assigned to cluster 1 and 3, and less likely to be assigned to cluster 2
+```
+
+```{r, fig.width=8, fig.height=5}
+mosaicplot(table(factor(df$Horse), df$clust_dendro), shade = TRUE, las = 1,
+           xlab = "Horse", ylab = "Hierarchical Cluster", main = "Mosaic Plot")
+```
+
+
+```{r}
+df$mds1 = NULL
+df$mds2 = NULL
+csv_file <- "df_std.csv"
+write.csv(df, file = csv_file)
+```
+
+```{r}
+chisq.test(table(df$Window_3, df$clust_dendro))
+# The p-value for the 2-D Chi-squared test is < 0.05, so we can reject the null which claim that the two variables are independent.
+```
+
+
+
+```{r}
+# subset horse windows
+ind_sub = which(df$Window %in% c("Before", "PreSed", "PostSed", "0-1h", "1-3h", "3-5h"))
+df_sub = df[ind_sub,]
+rownames(df_sub) = df[ind_sub,c("Horse_Window")]
+dist_subset = dist(df_sub[,c("Mean", "num_comp", "SD1", "SD2")])
+# mds subset 
+mds_sub <- cmdscale(d = dist_subset, k = 2)
+df_sub <- df_sub %>%
+  mutate(mds1 = mds_sub[,1],
+         mds2 = mds_sub[,2])
+```
+
+```{r}
+# plot mds by window subset
+df_sub %>%
+  ggplot(aes(x = mds1, y = mds2, color = Window)) +
+  geom_point(alpha = 0.5) +
+  labs(x = "Coordinate 1", y = "Coordinate 2", title = "MDS by Window (first 6 windows)")
+
+df_sub %>%
+  ggplot(aes(x = mds1, y = mds2)) +
+  geom_text(aes(label = Window),
+            alpha = .75) +
+  labs(x = "Coordinate 1", y = "Coordinate 2", title = "MDS by Window (first 6 windows)") +
+  theme_bw()
+```
+
+```{r, fig.width=7, fig.height=10}
+# hierchical clustering
+sub_hc_complete <- hclust(dist_subset, method = "complete")
+
+sub_hc_complete_ggdendro <- ggdendrogram(sub_hc_complete, theme_dendro = FALSE) +
+  labs(y = "Cluster Dissimilarity (complete linkage)", 
+       title = "") + 
+  coord_flip() +
+  theme_bw() +
+  theme(axis.title.y = element_blank())
+
+sub_hc_complete_ggdendro
+```
+
+```{r, fig.width=14, fig.height=6}
+library(dendextend)
+sub_hc_dendrogram <- as.dendrogram(sub_hc_complete)
+sub_hc_dendrogram <- set(sub_hc_dendrogram,
+                     "branches_k_color", k = 4)
+plot(sub_hc_dendrogram, ylab = "Pairwise Distance")
+```
+
+```{r}
+sub_clusters <- cutree(sub_hc_complete, h = 5)
+
+df_sub %>%
+  mutate(sub_cluster = as.factor(sub_clusters)) %>%
+  ggplot(aes(x = mds1, y = mds2,
+             color = sub_cluster)) +
+  geom_text(aes(label = Window),
+            alpha = .75) +
+  labs(x = "Coordinate 1", y = "Coordinate 2", 
+       title = "MDS by Window with Cluster Assignment (Cutoff at D=5)") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+```
