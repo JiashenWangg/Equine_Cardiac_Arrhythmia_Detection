@@ -1,0 +1,450 @@
+---
+title: "Threshold Data PCA"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F)
+knitr::opts_chunk$set(warning = F)
+knitr::opts_chunk$set(message = F)
+```
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(gridExtra) #for ggplot grid
+library(ggdendro)
+library(patchwork)
+library(factoextra)
+library(ggfortify)
+```
+
+```{r}
+df = read.csv("df_std.csv", header = TRUE)
+df$Window_3 <- factor(df$Window_3, levels = c("Endotoxin Admin", "Severe Symptoms", "Recovery Stage"))
+df = df[,-1]
+head(df)
+```
+
+```{r}
+#Load Time Series
+suffix = ".csv"
+all_time_names = c("Before Endotoxin", "Endotoxin Administration-presed", "Endotoxin-Post Sedation", "0-1 hour", "1-3 hours", "3-5 hours", "5-7 hours", "7-10 hours", "10-15 hours", "15-20 hours", "20 hours to end")
+all_time_names_no20 = c("Before Endotoxin", "Endotoxin Administration-presed", "Endotoxin-Post Sedation", "0-1 hour", "1-3 hours", "3-5 hours", "5-7 hours", "7-10 hours", "10-15 hours", "15-20 hours")
+all_mains = list("Before Endotoxin", "Pre Sedation", "Post Sedation", "0-1h", "1-3h", "3-5h", "5-7h", "7-10h", "10-15h", "15-20h", "20h+")
+all_mains_no20 = list("Before Endotoxin", "Pre Sedation", "Post Sedation", "0-1h", "1-3h", "3-5h", "5-7h", "7-10h", "10-15h", "15-20h")
+threshold_suffix = "_1000 threshold"
+
+#H01
+h1_prefix = "1000 threshold/horse 1 1000 threshold/horse1_"
+h1_ths_rr = list()
+for (name in all_time_names) {
+  path = paste0(h1_prefix, name, threshold_suffix, suffix)
+  data = read.csv(path)
+  rr_ts = ts(data$RR_i)
+  h1_ths_rr = append(h1_ths_rr, list(rr_ts))
+}
+h1_all_mains = all_mains
+
+#H02
+h2_prefix = "1000 threshold/horse 2 1000 threshold/horse2_"
+h2_ths_rr = list()
+for (name in all_time_names) {
+  path = paste0(h2_prefix, name, threshold_suffix, suffix)
+  data = read.csv(path)
+  rr_ts = ts(data$RR_i)
+  h2_ths_rr = append(h2_ths_rr, list(rr_ts))
+}
+h2_all_mains = all_mains
+
+#H04
+h4_prefix = "1000 threshold/horse 4 1000 threshold/horse4_"
+h4_ths_rr = list()
+for (name in all_time_names) {
+  path = paste0(h4_prefix, name, threshold_suffix, suffix)
+  data = read.csv(path)
+  rr_ts = ts(data$RR_i)
+  h4_ths_rr = append(h4_ths_rr, list(rr_ts))
+}
+h4_all_mains = all_mains
+
+#H07
+h7_prefix = "1000 threshold/horse 7 1000 threshold/horse7_"
+h7_ths_rr = list()
+for (name in all_time_names) {
+  path = paste0(h7_prefix, name, threshold_suffix, suffix)
+  data = read.csv(path)
+  rr_ts = ts(data$RR_i)
+  h7_ths_rr = append(h7_ths_rr, list(rr_ts))
+}
+h7_all_mains = all_mains
+
+#H08
+h8_prefix = "1000 threshold/horse 8 1000 threshold/horse8_"
+h8_ths_rr = list()
+for (name in all_time_names) {
+  path = paste0(h8_prefix, name, threshold_suffix, suffix)
+  data = read.csv(path)
+  rr_ts = ts(data$RR_i)
+  h8_ths_rr = append(h8_ths_rr, list(rr_ts))
+}
+h8_all_mains = all_mains
+
+#H09 (No 20+)
+h9_prefix = "1000 threshold/horse 9 1000 threshold/horse9_"
+h9_ths_rr = list()
+for (name in all_time_names_no20) {
+  path = paste0(h9_prefix, name, threshold_suffix, suffix)
+  data = read.csv(path)
+  rr_ts = ts(data$RR_i)
+  h9_ths_rr = append(h9_ths_rr, list(rr_ts))
+}
+h9_all_mains = all_mains_no20
+
+#H10 (No 20+)
+h10_prefix = "1000 threshold/horse 10 1000 threshold/horse10_"
+h10_ths_rr = list()
+for (name in all_time_names_no20) {
+  path = paste0(h10_prefix, name, threshold_suffix, suffix)
+  data = read.csv(path)
+  rr_ts = ts(data$RR_i)
+  h10_ths_rr = append(h10_ths_rr, list(rr_ts))
+}
+h10_all_mains = all_mains_no20
+
+#H11 (No 20+)
+h11_prefix = "1000 threshold/horse 11 1000 threshold/horse11_"
+h11_ths_rr = list()
+for (name in all_time_names_no20) {
+  path = paste0(h11_prefix, name, threshold_suffix, suffix)
+  data = read.csv(path)
+  rr_ts = ts(data$RR_i)
+  h11_ths_rr = append(h11_ths_rr, list(rr_ts))
+}
+h11_all_mains = all_mains_no20
+
+#H12 (No 15-20h, 20+)
+h12_prefix = "1000 threshold/horse 12 1000 threshold/horse12_"
+h12_middle_names = c("Before Endotoxin", "Endotoxin Administration-presed", "Endotoxin-Post Sedation", "0-1 hour", "1-3 hours", "3-5 hours", "5-7 hours", "7-10 hours", "10-15 hours")
+h12_ths_rr = list()
+for (name in h12_middle_names) {
+  path = paste0(h12_prefix, name, threshold_suffix, suffix)
+  data = read.csv(path)
+  rr_ts = ts(data$RR_i)
+  h12_ths_rr = append(h12_ths_rr, list(rr_ts))
+}
+h12_all_mains = list("Before Endotoxin", "Pre Sedation", "Post Sedation", "0-1h", "1-3h", "3-5h", "5-7h", "7-10h", "10-15h")
+
+#H13
+h13_prefix = "1000 threshold/horse 13 1000 threshold/horse13_"
+h13_ths_rr = list()
+for (name in all_time_names) {
+  path = paste0(h13_prefix, name, threshold_suffix, suffix)
+  data = read.csv(path)
+  rr_ts = ts(data$RR_i)
+  h13_ths_rr = append(h13_ths_rr, list(rr_ts))
+}
+h13_all_mains = all_mains
+
+with_before = list(h1_ths_rr, h2_ths_rr, h4_ths_rr, h7_ths_rr, h8_ths_rr, h9_ths_rr, h10_ths_rr, h11_ths_rr, h12_ths_rr, h13_ths_rr)
+```
+
+```{r}
+#100 time points from before to 15h
+long_ts_list = list()
+#Compile into 13 long time series
+#Each contains 9 time series: before, pre, post, 0-1, 1-3, 3-5, 5-7, 7-10, and 10-15
+for (ind in 1:length(with_before)){
+  horse = with_before[[ind]]
+   ts_temp = c(horse[[1]], horse[[2]], horse[[3]], horse[[4]], horse[[5]], horse[[6]], horse[[7]], horse[[8]], horse[[9]])
+   long_ts_list = append(long_ts_list, list(ts_temp))
+}
+cor(long_ts_list[[1]][1:40000], long_ts_list[[2]][1:40000])
+```
+
+```{r}
+len100_list = list()
+#now we have a list of long time series from start to 15h
+#cut each into 100 pieces and take the first value
+#at the end we should have 10 arrays of 100 values
+for (ts in long_ts_list) {
+  interval = floor(length(ts)/100)
+  len100_temp = c()
+  for (i in 1:100) {
+    len100_temp = c(len100_temp, ts[[i*interval]])
+  }
+  len100_list = append(len100_list, list(len100_temp))
+}
+len100_df = data.frame(len100_list)
+
+# standardize 10*100 table
+standardize <- function(x) {
+  (x - mean(x, na.rm = TRUE)) / sd(x, na.rm = TRUE)
+}
+for (i in 1:ncol(len100_df)) {
+  len100_df[,i] = round(standardize(len100_df[,i]), 3)
+}
+
+len100_transpose = t(len100_df)
+len100_df = as.data.frame(len100_transpose)
+colnames(len100_df) = c(1:100)
+rownames(len100_df) = c("H1", "H2", "H4", "H7", "H8", "H9", "H10", "H11", "H12", "H13")
+head(len100_df)
+```
+
+```{r}
+#PCA with 100 time points table
+len100_pca = prcomp(len100_df)
+autoplot(len100_pca, 
+         data = len100_df,
+         loadings = TRUE, loadings.colour = 'darkblue',
+         loadings.label.colour = 'darkblue',
+         loadings.label = TRUE, loadings.label.size = 3,
+         loadings.label.repel = TRUE,
+         label = TRUE,    
+         label.label = rownames(len100_df))  +
+  labs(title = "100 Time Points PCA (Before Endotoxin to 15h)")
+```
+
+```{r}
+pc1_loadings = len100_pca$rotation[, 1]
+sorted_pc1 = sort(abs(pc1_loadings), decreasing = TRUE)
+top15_pc1 = as.integer(names(sorted_pc1)[1:15]) 
+top15_pc1
+#13 12 19  9 40 28 18 14 35 38 25 31 29 15 16
+length(which(top15_pc1>40)) #none of the top 15 loadings are over 40
+
+pc2_loadings = len100_pca$rotation[, 2]
+
+pos_pc1 = as.integer(names(sort(len100_pca$rotation[, 1], decreasing = T))) #top 15 to PC1+
+pos_pc1[1:15]
+neg_pc1 = as.integer(names(sort(len100_pca$rotation[, 1], decreasing = F))) #top 15 to PC1-
+neg_pc1[1:15]
+pos_pc2 = as.integer(names(sort(len100_pca$rotation[, 2], decreasing = T))) #top 15 to PC2+
+pos_pc2[1:15]
+neg_pc2 = as.integer(names(sort(len100_pca$rotation[, 2], decreasing = F))) #top 15 to PC2-
+neg_pc2[1:15]
+```
+
+```{r}
+#Plot the loadings as a lines plot with length = 100
+plot(pc1_loadings, xlab = "Time", ylab = "PC1 Loadings", main = "PC1 Loadings")
+abline(a = 0, b = 0)
+
+plot(pc2_loadings, xlab = "Time", ylab = "PC2 Loadings", main = "PC2 Loadings")
+abline(a = 0, b = 0)
+```
+
+
+```{r}
+#Average length of each window(8 in total from before to 15h)
+window_length = c()
+for (i in 1:9){
+  temp = c()
+  for (j in 1:length(with_before)) {
+    horse = with_before[[j]]
+    temp = c(temp, length(horse[[i]]))
+  }
+  avg = mean(temp)
+  window_length = c(window_length, avg)
+}
+round(window_length/sum(window_length), 2) #0.02 0.02 0.04 0.07 0.11 0.11 0.13 0.24 0.27
+window_percent = c(0.02, 0.04, 0.08, 0.15, 0.26, 0.37, 0.50, 0.74, 1)
+```
+
+
+
+
+
+
+
+
+```{r}
+#100 time points from before to 10h
+long_ts_list2 = list()
+#Compile into 13 long time series
+#Each contains 9 time series: before, pre, post, 0-1, 1-3, 3-5, 5-7, 7-10
+for (ind in 1:length(with_before)){
+  horse = with_before[[ind]]
+   ts_temp = c(horse[[1]], horse[[2]], horse[[3]], horse[[4]], horse[[5]], horse[[6]], horse[[7]], horse[[8]])
+   long_ts_list2 = append(long_ts_list2, list(ts_temp))
+}
+```
+
+```{r}
+len100_list2 = list()
+#cut each into 100 pieces and take the first value
+for (ts in long_ts_list2) {
+  interval = floor(length(ts)/100)
+  len100_temp = c()
+  for (i in 1:100) {
+    len100_temp = c(len100_temp, ts[[i*interval]])
+  }
+  len100_list2 = append(len100_list2, list(len100_temp))
+}
+len100_df2 = data.frame(len100_list2)
+len100_transpose = t(len100_df2)
+len100_df2 = as.data.frame(len100_transpose)
+colnames(len100_df2) = c(1:100)
+rownames(len100_df2) = c("H1", "H2", "H4", "H7", "H8", "H9", "H10", "H11", "H12", "H13")
+head(len100_df2)
+```
+
+```{r}
+#PCA with 100 time points table
+len100_pca2 = prcomp(len100_df2)
+autoplot(len100_pca2, 
+         data = len100_df2,
+         loadings = TRUE, loadings.colour = 'darkblue',
+         loadings.label.colour = 'darkblue',
+         loadings.label = TRUE, loadings.label.size = 3,
+         loadings.label.repel = TRUE)  +
+  labs(title = "100 Time Points PCA (Before Endotoxin to 10h)")
+
+pc1_loadings2 = len100_pca2$rotation[, 1]
+sorted_loadings2 = sort(abs(pc1_loadings2), decreasing = TRUE)
+top15_loadings2 = as.integer(names(sorted_loadings2)[1:15]) 
+top15_loadings2
+#11 12  4 27 10 28 25 18 20  2 29  9 21 19 30
+```
+
+```{r}
+#Average length of each window(8 in total from before to 10h)
+window_length = c()
+for (i in 1:8){
+  temp = c()
+  for (j in 1:length(with_before)) {
+    horse = with_before[[j]]
+    temp = c(temp, length(horse[[i]]))
+  }
+  avg = mean(temp)
+  window_length = c(window_length, avg)
+}
+round(window_length/sum(window_length), 2) #0.03 0.02 0.06 0.10 0.15 0.14 0.18 0.33
+window_percent = c(0.03, 0.05, 0.11, 0.21, 0.36, 0.50, 0.68, 1)
+
+#the top 5 loadings are 11 12  4 27 10, time points 10 to 12 seem important
+#they correspond to the transition from the endotoxin administration window to 0-1h
+```
+
+```{r}
+length(which(top15_loadings2>=0 & top15_loadings2<3)) #1
+length(which(top15_loadings2>=3 & top15_loadings2<5)) #1
+length(which(top15_loadings2>=5 & top15_loadings2<11)) #2
+length(which(top15_loadings2>=11 & top15_loadings2<21)) #5
+length(which(top15_loadings2>=21 & top15_loadings2<36)) #6
+length(which(top15_loadings2>=36 & top15_loadings2<50)) #0
+length(which(top15_loadings2>=50 & top15_loadings2<68)) #0
+length(which(top15_loadings2>68)) #0
+# From the previous chunk, the first 3 windows are too small in comparison to later windows
+# and all of the top 15 loadings correspond to time points before the 3rd hour
+# So we try redo the PCA after removing 3-5h, 5-7h, 7-10h window, to focus on change prior to the 3rd hour
+```
+
+
+
+
+
+
+
+```{r}
+#100 time points from before to 3h
+long_ts_list3 = list()
+#Compile into 13 long time series containing: before, pre, post, 0-1, 1-3
+for (ind in 1:length(with_before)){
+  horse = with_before[[ind]]
+   ts_temp = c(horse[[1]], horse[[2]], horse[[3]], horse[[4]], horse[[5]])
+   long_ts_list3 = append(long_ts_list3, list(ts_temp))
+}
+```
+
+```{r}
+len100_list3 = list()
+#cut each into 100 pieces and take the first value
+for (ts in long_ts_list3) {
+  interval = floor(length(ts)/100)
+  len100_temp = c()
+  for (i in 1:100) {
+    len100_temp = c(len100_temp, ts[[i*interval]])
+  }
+  len100_list3 = append(len100_list3, list(len100_temp))
+}
+len100_df3 = data.frame(len100_list3)
+len100_transpose = t(len100_df3)
+len100_df3 = as.data.frame(len100_transpose)
+colnames(len100_df3) = c(1:100)
+rownames(len100_df3) = c("H1", "H2", "H4", "H7", "H8", "H9", "H10", "H11", "H12", "H13")
+head(len100_df3)
+```
+
+```{r}
+#PCA with 100 time points table
+len100_pca3 = prcomp(len100_df3)
+autoplot(len100_pca3, 
+         data = len100_df3,
+         loadings = TRUE, loadings.colour = 'darkblue',
+         loadings.label.colour = 'darkblue',
+         loadings.label = TRUE, loadings.label.size = 3,
+         loadings.label.repel = TRUE)  +
+  labs(title = "100 Time Points PCA (Before Endotoxin to 3h)")
+
+pc1_loadings3 = len100_pca3$rotation[, 1]
+sorted_loadings3 = sort(abs(pc1_loadings3), decreasing = TRUE)
+top15_loadings3 = as.integer(names(sorted_loadings3)[1:15]) 
+top15_loadings3
+#9  8 79 35 87 29 37 59 34 54 38 23 63 57 60
+```
+
+```{r}
+#Average length of each window(5 in total from before to 3h)
+window_length3 = c()
+for (i in 1:5){
+  temp = c()
+  for (j in 1:length(with_before)) {
+    horse = with_before[[j]]
+    temp = c(temp, length(horse[[i]]))
+  }
+  avg = mean(temp)
+  window_length3 = c(window_length3, avg)
+}
+round(window_length3/sum(window_length3), 2) #0.08 0.06 0.16 0.28 0.42
+window_percent3 = c(0.08, 0.14, 0.30, 0.58, 1)
+```
+
+```{r}
+length(which(top15_loadings3>=0 & top15_loadings3<8)) #0
+length(which(top15_loadings3>=8 & top15_loadings3<14)) #2
+length(which(top15_loadings3>=14 & top15_loadings3<30)) #2
+length(which(top15_loadings3>=30 & top15_loadings3<58)) #6
+length(which(top15_loadings3>58)) #5
+
+# time point 9 stands out, 8 is also important
+# they correspond to the transition from before endotoxin to pre-sedation
+
+# 34 35 37 38 are all in the top 15 loadings, they correspond to a period of time 
+# in the early stages of 0-1h window, we can find out which specific minutes they are
+5/28 * 60 #10.71
+9/28 * 60 #19.29
+# so the 11th to 19th minute in the 0-1h window, or after endotoxin administration
+```
+
+
+```{r}
+# Plot the 100 time points table as a lines plot
+plot(len100_list3[[1]], type = "l", xlab = "Time", ylab = "RR", ylim = c(500,2400))
+for (i in 2:10) {
+  lines(len100_list3[[i]])
+}
+abline(v = 8, col = "red", lwd = 1)
+abline(v = 14, col = "red", lwd = 1)
+abline(v = 30, col = "red", lwd = 1)
+abline(v = 58, col = "red", lwd = 1)
+
+text(x = 40, y = 2300, labels = "0-1h", pos = 4, cex = 1, col = "red")
+
+abline(v = 8.5, col = "blue", lwd = 3)
+text(x = 8 vv, y = 2300, labels = "Time 8-9", pos = 4, cex = 0.8, col = "blue")
+abline(v = 36, col = "blue", lwd = 6)
+text(x = 35, y = 1800, labels = "Time 34-38", pos = 4, cex = 0.8, col = "blue")
+```
+
