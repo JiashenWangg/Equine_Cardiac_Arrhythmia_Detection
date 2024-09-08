@@ -430,5 +430,4 @@ for (i in 6:ncol(df)) {
 }
 # standardized_file <- "df_std.csv"
 # write.csv(df, file = standardized_file)
-df
 ```
