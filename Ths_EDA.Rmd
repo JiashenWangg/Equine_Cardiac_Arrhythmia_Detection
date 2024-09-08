@@ -1,0 +1,434 @@
+---
+title: "Threshold Data EDA"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F)
+knitr::opts_chunk$set(warning = F)
+knitr::opts_chunk$set(message = F)
+```
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(FNN)
+library(mclust)
+library(gridExtra) #for ggplot grid
+library(astsa)
+library(forecast)
+```
+
+BE: before endotoxin, not all horses have this (3, 5, and 6) \newline
+presed: first half of endotoxin administration (approx. 30mins but variable) \newline
+postsed: second half of endotoxin administration, horses were also sedated (approx. 30 mins) \newline
+0_1: 0-1hrs after endotoxin \newline
+1_3: 1-3hrs after endotoxin \newline
+3_5: 3-5hrs after endotoxin \newline
+5_7: 5-7hrs after endotoxin (treatment given in this period) \newline
+7_10: 7-10hrs \newline
+10_15: 10-15hrs \newline
+15_20: 15-20hrs \newline
+20_end: 20+hrs if available, not all horses have this
+
+```{r}
+#Load Files
+suffix = ".csv"
+all_time_names = c("Before Endotoxin", "Endotoxin Administration-presed", "Endotoxin-Post Sedation", "0-1 hour", "1-3 hours", "3-5 hours", "5-7 hours", "7-10 hours", "10-15 hours", "15-20 hours", "20 hours to end")
+all_time_names_no20 = c("Before Endotoxin", "Endotoxin Administration-presed", "Endotoxin-Post Sedation", "0-1 hour", "1-3 hours", "3-5 hours", "5-7 hours", "7-10 hours", "10-15 hours", "15-20 hours")
+all_mains = list("Before Endotoxin", "Pre Sedation", "Post Sedation", "0-1h", "1-3h", "3-5h", "5-7h", "7-10h", "10-15h", "15-20h", "20h+")
+all_mains_no20 = list("Before Endotoxin", "Pre Sedation", "Post Sedation", "0-1h", "1-3h", "3-5h", "5-7h", "7-10h", "10-15h", "15-20h")
+threshold_suffix = "_1000 threshold"
+
+#H01
+h1_prefix = "1000 threshold/horse 1 1000 threshold/horse1_"
+h1_ths_rr = list()
+for (name in all_time_names) {
+  path = paste0(h1_prefix, name, threshold_suffix, suffix)
+  data = read.csv(path)
+  rr_ts = ts(data$RR_i)
+  h1_ths_rr = append(h1_ths_rr, list(rr_ts))
+}
+h1_all_mains = all_mains
+
+#H02
+h2_prefix = "1000 threshold/horse 2 1000 threshold/horse2_"
+h2_ths_rr = list()
+for (name in all_time_names) {
+  path = paste0(h2_prefix, name, threshold_suffix, suffix)
+  data = read.csv(path)
+  rr_ts = ts(data$RR_i)
+  h2_ths_rr = append(h2_ths_rr, list(rr_ts))
+}
+h2_all_mains = all_mains
+
+#H03 (No Before Endo, No 20+)
+h3_prefix = "1000 threshold/horse 3 1000 threshold/horse3_"
+h3_middle_names = c("Endotoxin Administration-presed", "Endotoxin-Post Sedation", "0-1 hour", "1-3 hours", "3-5 hours", "5-7 hours", "7-10 hours", "10-15 hours", "15-20 hours")
+h3_ths_rr = list()
+for (name in h3_middle_names) {
+  path = paste0(h3_prefix, name, threshold_suffix, suffix)
+  data = read.csv(path)
+  rr_ts = ts(data$RR_i)
+  h3_ths_rr = append(h3_ths_rr, list(rr_ts))
+}
+h3_all_mains = list("Pre Sedation", "Post Sedation", "0-1h", "1-3h", "3-5h", "5-7h", "7-10h", "10-15h", "15-20h")
+
+#H04
+h4_prefix = "1000 threshold/horse 4 1000 threshold/horse4_"
+h4_ths_rr = list()
+for (name in all_time_names) {
+  path = paste0(h4_prefix, name, threshold_suffix, suffix)
+  data = read.csv(path)
+  rr_ts = ts(data$RR_i)
+  h4_ths_rr = append(h4_ths_rr, list(rr_ts))
+}
+h4_all_mains = all_mains
+
+#H05 (No Before Endo)
+h5_prefix = "1000 threshold/horse 5 1000 threshold/horse5_"
+h5_middle_names = c("Endotoxin Administration-presed", "Endotoxin-Post Sedation", "0-1 hour", "1-3 hours", "3-5 hours", "5-7 hours", "7-10 hours", "10-15 hours", "15-20 hours", "20 hours to end")
+h5_ths_rr = list()
+for (name in h5_middle_names) {
+  path = paste0(h5_prefix, name, threshold_suffix, suffix)
+  data = read.csv(path)
+  rr_ts = ts(data$RR_i)
+  h5_ths_rr = append(h5_ths_rr, list(rr_ts))
+}
+h5_all_mains = list("Pre Sedation", "Post Sedation", "0-1h", "1-3h", "3-5h", "5-7h", "7-10h", "10-15h", "15-20h", "20h+")
+
+#H06 (No Before Endo)
+h6_prefix = "1000 threshold/horse 6 1000 threshold/horse6_"
+h6_middle_names = c("Endotoxin Administration-presed", "Endotoxin-Post Sedation", "0-1 hour", "1-3 hours", "3-5 hours", "5-7 hours", "7-10 hours", "10-15 hours", "15-20 hours", "20 hours to end")
+h6_ths_rr = list()
+for (name in h6_middle_names) {
+  path = paste0(h6_prefix, name, threshold_suffix, suffix)
+  data = read.csv(path)
+  rr_ts = ts(data$RR_i)
+  h6_ths_rr = append(h6_ths_rr, list(rr_ts))
+}
+h6_all_mains = list("Pre Sedation", "Post Sedation", "0-1h", "1-3h", "3-5h", "5-7h", "7-10h", "10-15h", "15-20h", "20h+")
+
+#H07
+h7_prefix = "1000 threshold/horse 7 1000 threshold/horse7_"
+h7_ths_rr = list()
+for (name in all_time_names) {
+  path = paste0(h7_prefix, name, threshold_suffix, suffix)
+  data = read.csv(path)
+  rr_ts = ts(data$RR_i)
+  h7_ths_rr = append(h7_ths_rr, list(rr_ts))
+}
+h7_all_mains = all_mains
+
+#H08
+h8_prefix = "1000 threshold/horse 8 1000 threshold/horse8_"
+h8_ths_rr = list()
+for (name in all_time_names) {
+  path = paste0(h8_prefix, name, threshold_suffix, suffix)
+  data = read.csv(path)
+  rr_ts = ts(data$RR_i)
+  h8_ths_rr = append(h8_ths_rr, list(rr_ts))
+}
+h8_all_mains = all_mains
+
+#H09 (No 20+)
+h9_prefix = "1000 threshold/horse 9 1000 threshold/horse9_"
+h9_ths_rr = list()
+for (name in all_time_names_no20) {
+  path = paste0(h9_prefix, name, threshold_suffix, suffix)
+  data = read.csv(path)
+  rr_ts = ts(data$RR_i)
+  h9_ths_rr = append(h9_ths_rr, list(rr_ts))
+}
+h9_all_mains = all_mains_no20
+
+#H10 (No 20+)
+h10_prefix = "1000 threshold/horse 10 1000 threshold/horse10_"
+h10_ths_rr = list()
+for (name in all_time_names_no20) {
+  path = paste0(h10_prefix, name, threshold_suffix, suffix)
+  data = read.csv(path)
+  rr_ts = ts(data$RR_i)
+  h10_ths_rr = append(h10_ths_rr, list(rr_ts))
+}
+h10_all_mains = all_mains_no20
+
+#H11 (No 20+)
+h11_prefix = "1000 threshold/horse 11 1000 threshold/horse11_"
+h11_ths_rr = list()
+for (name in all_time_names_no20) {
+  path = paste0(h11_prefix, name, threshold_suffix, suffix)
+  data = read.csv(path)
+  rr_ts = ts(data$RR_i)
+  h11_ths_rr = append(h11_ths_rr, list(rr_ts))
+}
+h11_all_mains = all_mains_no20
+
+#H12 (No 15-20h, 20+)
+h12_prefix = "1000 threshold/horse 12 1000 threshold/horse12_"
+h12_middle_names = c("Before Endotoxin", "Endotoxin Administration-presed", "Endotoxin-Post Sedation", "0-1 hour", "1-3 hours", "3-5 hours", "5-7 hours", "7-10 hours", "10-15 hours")
+h12_ths_rr = list()
+for (name in h12_middle_names) {
+  path = paste0(h12_prefix, name, threshold_suffix, suffix)
+  data = read.csv(path)
+  rr_ts = ts(data$RR_i)
+  h12_ths_rr = append(h12_ths_rr, list(rr_ts))
+}
+h12_all_mains = list("Before Endotoxin", "Pre Sedation", "Post Sedation", "0-1h", "1-3h", "3-5h", "5-7h", "7-10h", "10-15h")
+
+#H13
+h13_prefix = "1000 threshold/horse 13 1000 threshold/horse13_"
+h13_ths_rr = list()
+for (name in all_time_names) {
+  path = paste0(h13_prefix, name, threshold_suffix, suffix)
+  data = read.csv(path)
+  rr_ts = ts(data$RR_i)
+  h13_ths_rr = append(h13_ths_rr, list(rr_ts))
+}
+h13_all_mains = all_mains
+
+ths_all = list(h1_ths_rr, h2_ths_rr, h3_ths_rr, h4_ths_rr, h5_ths_rr, h6_ths_rr, h7_ths_rr, h8_ths_rr, h9_ths_rr, h10_ths_rr, h11_ths_rr, h12_ths_rr, h13_ths_rr)
+```
+
+```{r}
+# create first row of df
+# all_mains_abbr = c("Before", "PreSed", "PostSed", "0-1h", "1-3h", "3-5h", "5-7h", "7-10h", "10-15h", "15-20h", "20h+")
+# all_horse_codes = c("H1", "H2", "H3", "H4", "H5", "H6", "H7", "H8", "H9", "H10", "H11", "H12", "H13")
+# row_names = c()
+# for (horse in all_horse_codes) {
+#   for (main in all_mains_abbr) {
+#     row_names = c(row_names, paste(horse, main, sep = "_"))
+#   }
+# }
+# row_dne = c("H3_Before", "H3_20h+", "H5_Before", "H6_Before", "H9_20h+", "H10_20h+", "H11_20h+", "H12_15-20h", "H12_20h+")
+# row_names <- row_names[!row_names %in% row_dne]
+```
+
+```{r}
+#Summary Stat
+total_ts_len = rep(0, 11)
+num_ts = rep(0, 11)
+rr_summary <- data.frame(matrix(0, nrow = 13, ncol = 11))
+max_rr <- data.frame(matrix(0, nrow = 13, ncol = 11))
+min_rr <- data.frame(matrix(0, nrow = 13, ncol = 11))
+
+rownames(rr_summary) = c("H1", "H2", "H3", "H4", "H5", "H6", "H7", "H8", "H9", "H10", "H11", "H12", "H13")
+colnames(rr_summary) = c("Before", "PreSed", "PostSed", "0-1h", "1-3h", "3-5h", "5-7h", "7-10h", "10-15h", "15-20h", "20h+")
+
+counter = 0
+for (horse in ths_all) {
+  counter = counter + 1
+  if (counter %in% c(3, 5, 6)) {
+    for (i in 1:length(horse)) {
+      total_ts_len[i] = total_ts_len[i] + length(horse[[i]])
+      num_ts[i] = num_ts[i] + length(horse[i])
+      rr_summary[counter,i+1] = mean(horse[[i]])
+      max_rr[counter,i+1] = max(horse[[i]])
+      min_rr[counter,i+1] = min(horse[[i]])
+    }
+  }
+  else {
+    for (i in 1:length(horse)) {
+      total_ts_len[i] = total_ts_len[i] + length(horse[[i]])
+      num_ts[i] = num_ts[i] + length(horse[i])
+      rr_summary[counter,i] = mean(horse[[i]])
+      max_rr[counter,i] = max(horse[[i]])
+      min_rr[counter,i] = min(horse[[i]])
+    }   
+  }
+}
+total_ts_len / num_ts #average number of time series data points in each duration
+rr_summary[rr_summary == 0] <- NA
+max_rr[max_rr == 0] <- NA
+min_rr[min_rr == 0] <- NA
+rr_summary
+```
+
+```{r}
+#Avg. RR intervals of all horses
+matplot(t(rr_summary), type = "l", col = 1:ncol(rr_summary), lty = 1, lwd = 2,
+        xlab = "", ylab = "RR Interval",
+        main = "All Horses Avg. RR Intervals Over Time", xaxt = "n")
+axis(1, at = 1:ncol(rr_summary), labels = colnames(rr_summary), cex.axis = 0.7) 
+legend("topright", legend = rownames(rr_summary), col = 1:ncol(rr_summary), lty = 1, lwd = 2, cex = 0.7)
+```
+
+```{r, cache = T}
+#Store # cluster for all windows
+clust_summary <- data.frame(matrix(0, nrow = 13, ncol = 11))
+rownames(clust_summary) = c("H1", "H2", "H3", "H4", "H5", "H6", "H7", "H8", "H9", "H10", "H11", "H12", "H13")
+colnames(clust_summary) = c("Before", "PreSed", "PostSed", "0-1h", "1-3h", "3-5h", "5-7h", "7-10h", "10-15h", "15-20h", "20h+")
+counter = 0
+for (horse in ths_all) {
+  counter = counter + 1
+  if (counter %in% c(3, 5, 6)) {
+    for (i in 1:length(horse)) {
+      df = data.frame(x = horse[[i]][-length(horse[[i]])], y = horse[[i]][-1])
+      fit <- Mclust(df, modelNames = "VVE")
+      clust_summary[counter,i+1] = fit$G
+    }
+  }
+  else {
+    for (i in 1:length(horse)) {
+      df = data.frame(x = horse[[i]][-length(horse[[i]])], y = horse[[i]][-1])
+      fit <- Mclust(df, modelNames = "VVE")
+      clust_summary[counter,i] = fit$G
+    }   
+  }
+}
+clust_summary[clust_summary == 0] <- NA
+clust_summary
+```
+
+```{r}
+# store df to csv
+rr_summary_vec = na.omit(c(t(rr_summary)))
+max_rr_vec = na.omit(c(t(max_rr)))
+min_rr_vec = na.omit(c(t(min_rr)))
+clust_summary_vec = na.omit(c(t(clust_summary)))
+# df = data.frame(window = row_names, mean_RR = rr_summary_vec, num_clust = clust_summary_vec)
+# df$mean_RR = rr_summary_vec
+# df$num_clust = clust_summary_vec
+# csv_file <- "df.csv"
+# write.csv(df, file = csv_file)
+```
+
+```{r}
+#Analysis on control vs. 0-1h
+#Percentage decrease from before to 0-1h
+rr_decrease = round((rr_summary$Before - rr_summary$`0-1h`)/rr_summary$Before, 2)
+rr_decrease
+#Average percentage decrease is 34.2%
+mean(na.omit(rr_decrease))
+```
+
+
+```{r, cache = T, fig.width=9, fig.height=6, fig.cap="Avg. RR intervals of all horses"}
+#Avg. RR intervals of horses 7-13
+matplot(t(rr_summary[,]), type = "l", col = "black", lty = 1, lwd = 2,
+        xlab = "", ylim = c(780, 2150), ylab = "RR Interval",
+        main = "All Horses Mean RR Intervals", xaxt = "n")
+axis(1, at = 1:ncol(rr_summary), labels = colnames(rr_summary), cex.axis = 0.7) 
+
+polygon(c(0, 3.5, 3.5, 0), c(2200, 2200, 0, 0), col = rgb(0.5, 0, 0, alpha = 0.3), border = NA)
+polygon(c(3.5, 6.5, 6.5, 3.5), c(2200, 2200, 0, 0), col = rgb(0, 0, 0, alpha = 0.3), border = NA)
+polygon(c(6.5, 12, 12, 6.5), c(2200, 2200, 0, 0), col = rgb(0, 0.5, 0.5, alpha = 0.3), border = NA)
+
+text(x = 0.9, y = 2100, labels = "Endotoxin Admin", pos = 4, cex = 1.3)
+text(x = 3.7, y = 2100, labels = "Severe Symptoms", pos = 4, cex = 1.3)
+text(x = 7.3, y = 2100, labels = "Recovery Stage", pos = 4, cex = 1.3)
+```
+
+```{r, cache = T, fig.width=9, fig.height=6, fig.cap="Avg. RR intervals of horses 7-13"}
+#Avg. RR intervals of horses 7-13
+matplot(t(rr_summary[c(7:13),]), type = "l", col = 7:ncol(rr_summary), lty = 1, lwd = 2,
+        xlab = "", ylim = c(780, 2150), ylab = "RR Interval",
+        main = "Horses 7-13 Mean RR Intervals", xaxt = "n")
+axis(1, at = 1:ncol(rr_summary), labels = colnames(rr_summary), cex.axis = 0.7) 
+# abline(v = 7, col = "red", lty = 2)
+# text(x = 6.8, y = 2000, labels = "Treatment Given", col = "blue", pos = 4)
+
+polygon(c(0, 3.5, 3.5, 0), c(2200, 2200, 0, 0), col = rgb(0.5, 0, 0, alpha = 0.3), border = NA)
+polygon(c(3.5, 6.5, 6.5, 3.5), c(2200, 2200, 0, 0), col = rgb(0, 0, 0, alpha = 0.3), border = NA)
+polygon(c(6.5, 12, 12, 6.5), c(2200, 2200, 0, 0), col = rgb(0, 0.5, 0.5, alpha = 0.3), border = NA)
+
+text(x = 0.9, y = 2100, labels = "Endotoxin Admin", pos = 4, cex = 1.3)
+text(x = 3.7, y = 2100, labels = "Severe Symptoms", pos = 4, cex = 1.3)
+text(x = 7.3, y = 2100, labels = "Recovery Stage", pos = 4, cex = 1.3)
+legend("topright", legend = rownames(rr_summary)[7:13], col = 7:ncol(rr_summary), lty = 1, lwd = 2, cex = 0.8)
+```
+
+```{r, cache = T, fig.cap="Number of Components Assigned"}
+#number of components of all horses
+matplot(t(clust_summary), type = "l", col = 1:ncol(clust_summary), lty = 1, lwd = 2,
+        xlab = "", ylab = "# Components",
+        main = "Number of Components Assigned", xaxt = "n")
+axis(1, at = 1:ncol(clust_summary), labels = colnames(clust_summary), cex.axis = 0.7) 
+legend("topright", legend = rownames(clust_summary), col = 1:ncol(clust_summary), lty = 1, lwd = 2, cex = 0.7)
+
+# individual plots
+for (i in 1:length(ths_all)) {
+  plot(unlist(clust_summary[i,c(1:6)]), type = "o", col = "blue", xaxt = "n", ylim = c(1,9),
+     xlab = "", ylab = "# Components", main = paste("Number of Components of Horse", i))
+  axis(1, at = 1:6, labels = colnames(clust_summary)[1:6], cex.axis = 0.7) 
+}
+```
+
+```{r}
+df = read.csv("df.csv", header = TRUE)
+# for (i in 1:nrow(df)) {
+#   df$Window[i] = unlist(strsplit(df$Horse_Window[i], "_"))[2]
+# }
+# df = df[,-1]
+head(df)
+
+# df$Window_3 = df$Window
+# for (i in 1:nrow(df)) {
+#   if (df$Window[i] %in% c("Before", "PreSed", "PostSed")) {
+#     df$Window_3[i] = "Endotoxin Admin"
+#   }
+#   else if (df$Window[i] %in% c("0-1h", "1-3h", "3-5h")) {
+#     df$Window_3[i] = "Severe Symptoms"
+#   }
+#   else {
+#     df$Window_3[i] = "Recovery Stage"
+#   }
+# }
+# csv_file <- "df.csv"
+# write.csv(df, file = csv_file)
+```
+
+```{r}
+# explore sd1 and sd2
+mean = mean(h1_ths_rr[[3]])
+sdrr = sqrt( mean(h1_ths_rr[[3]]^2) - mean^2)
+delta_rr = h1_ths_rr[[3]][1:length(h1_ths_rr[[3]])-1] - h1_ths_rr[[3]][-1]
+sdsd = sqrt( mean(delta_rr^2) - mean(delta_rr)^2)
+
+# gamma_0 = mean(h1_ths_rr[[3]]^2)
+# gamma_1 = mean( h1_ths_rr[[3]][1:length(h1_ths_rr[[3]])-1] * h1_ths_rr[[3]][-1])
+# phi_0 = mean((h1_ths_rr[[3]] - mean)^2)
+# phi_1 = mean( (h1_ths_rr[[3]][1:length(h1_ths_rr[[3]])-1] - mean) * (h1_ths_rr[[3]][-1] - mean))
+
+sd1 = sqrt((sdsd^2)/2)
+sd2 = sqrt((sdrr^2)*2 - (sdsd^2)/2)
+sd1
+sd2
+```
+
+```{r}
+plot(df$Weight, df$Mean)
+abline(a = 0, b = weight_mean_lm$coefficient)
+# relationship between body weight and mean RR(both standardized)
+weight_mean_lm = lm(Mean ~ Weight-1, data = df)
+summary(weight_mean_lm)
+weight_mean_lm$coefficient
+# mean RR decreases(heart beats faster) as body weight increases (p-value = 0.085)
+
+# relationship between age and mean RR
+age_mean_lm = lm(Mean ~ Age, data = df)
+summary(age_mean_lm)
+# not significant
+```
+
+```{r}
+# remove the effect of body weight from all mean RR intervals 
+# rr_adj = rr/weight
+std_wt = df$Weight*weight_mean_lm$coefficient
+df$std_weight = std_wt
+df$rr_diff = df$Mean - df$std_weight
+```
+
+
+```{r}
+# standardize
+standardize <- function(x) {
+  (x - mean(x, na.rm = TRUE)) / sd(x, na.rm = TRUE)
+}
+for (i in 6:ncol(df)) {
+  df[,i] = round(standardize(df[,i]), 3)
+}
+# standardized_file <- "df_std.csv"
+# write.csv(df, file = standardized_file)
+df
+```
